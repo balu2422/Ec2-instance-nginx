@@ -9,11 +9,11 @@ resource "aws_key_pair" "deployer" {
 }
 
 resource "aws_instance" "web" {
-  ami               = var.ami
-  instance_type     = var.instance_type
-  key_name          = aws_key_pair.deployer.key_name
-  subnet_id         = var.subnet_id
-  security_groups   = [var.security_group_id]
+  ami                         = var.ami
+  instance_type               = var.instance_type
+  key_name                    = aws_key_pair.deployer.key_name
+  subnet_id                   = var.subnet_id
+  security_groups             = [var.security_group_id]
   associate_public_ip_address = true
 
   user_data = <<-EOF
@@ -48,6 +48,6 @@ output "public_ip" {
 }
 
 output "private_key_pem" {
-  value = tls_private_key.example.private_key_pem
+  value     = tls_private_key.example.private_key_pem
   sensitive = true
 }
