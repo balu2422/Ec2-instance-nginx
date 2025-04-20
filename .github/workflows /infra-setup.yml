@@ -7,6 +7,11 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      confirm_destroy:
+        description: 'Type "destroy" to confirm'
+        required: true
 
 permissions:
   id-token: write
@@ -39,11 +44,12 @@ jobs:
 
       - name: Terraform fmt
         run: terraform fmt -recursive
-        
+
       - name: Terraform validate
         run: terraform validate
-        
+
       - name: Terraform plan
+        if: github.event_name != 'workflow_dispatch'
         run: terraform plan -var-file="terraform.tfvars"
 
       - name: Lint Terraform Code
@@ -84,13 +90,15 @@ jobs:
           header: "Terraform Documentation "
           path: "./README.md"
 
-      - name: Applying Terraform after PR Merge
+      - name: Terraform Apply (on main push)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          terraform init
-          terraform apply -var-file="terraform.tfvars" -auto-approve
+        run: terraform apply -var-file="terraform.tfvars" -auto-approve
 
       - name: Upload Private Key to S3
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
         run: |
           aws s3 cp ./modules/ec2/private_key.pem s3://techopsbucket123/private-key.pem
+
+      - name: Terraform Destroy 
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.confirm_destroy == 'destroy'
+        run: terraform destroy -var-file="terraform.tfvars" -auto-approve
