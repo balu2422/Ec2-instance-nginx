@@ -1,6 +1,7 @@
-name: Infra apply & destory
+name: Infra apply & destroy
+
 on:
-  pus:
+  push:
     branches:
       - main
   pull_request:
@@ -35,41 +36,33 @@ jobs:
 
       - name: Terraform Init
         run: terraform init -reconfigure
-        working-directory: ./Infra
 
       - name: Terraform fmt
-        run: terraform fmt
-        working-directory: ./Infra
+        run: terraform fmt -recursive
         
       - name: Terraform validate
         run: terraform validate
-        working-directory: ./Infra
         
       - name: Terraform plan
-        run: terraform plan -var-file="../environments/dev/terraform.tfvars"
-        working-directory: ./Infra
+        run: terraform plan -var-file="terraform.tfvars"
 
       - name: Lint Terraform Code
         run: |
           curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
           tflint --init
           tflint --config .tflint.hcl
-        working-directory: ./Infra
-        
+
       - name: Install Checkov
         run: pip install checkov
- 
+
       - name: Run Checkov with soft fail
-        run: |
-          pip install checkov
-          checkov --directory . --soft-fail
-        working-directory: ./Infra
+        run: checkov --directory . --soft-fail
 
       - name: Generate Markdown with Terraform Docs
         if: github.event_name == 'push' || github.event_name == 'pull_request'
         uses: terraform-docs/gh-actions@v1.3.0
         with:
-          working-dir: ./Infra
+          working-dir: .
           output-file: README.md
           output-method: inject
           git-push: true
@@ -86,22 +79,18 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2.9.0
         with:
-          working-dir: ./Infra
+          working-dir: .
           github_token: ${{ secrets.GITHUB_TOKEN }}
           header: "Terraform Documentation "
-          path: "./Infra/README.md"
-
+          path: "./README.md"
 
       - name: Applying Terraform after PR Merge
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           terraform init
-          terraform apply -var-file="../environments/dev/terraform.tfvars" -auto-approve
-        working-directory: ./Infra
+          terraform apply -var-file="terraform.tfvars" -auto-approve
 
       - name: Upload Private Key to S3
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success() 
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
         run: |
-          aws s3 cp ./Infra/modules/ec2/private_key.pem s3://techopsbucket123/private-key.pem
-    
-      
+          aws s3 cp ./modules/ec2/private_key.pem s3://techopsbucket123/private-key.pem
